@@ -3,48 +3,52 @@ const bcrypt = require('bcryptjs');
 const User = require('../models/user');
 
 exports.getLogin = (req, res, next) => {
+  let message = req.flash('error');
+  if (message.length > 0) {
+    message = message[0];
+  } else {
+    message = null;
+  }
   res.render('auth/login', {
     path: '/login',
     pageTitle: 'Login',
-    isAuthenticated: false
+    errorMessage: message
   });
 };
 
 exports.getSignup = (req, res, next) => {
   res.render('auth/signup', {
     path: '/signup',
-    pageTitle: 'Signup',
-    isAuthenticated: false
+    pageTitle: 'Signup'
   });
 };
 
 exports.postLogin = (req, res, next) => {
   const email = req.body.email;
   const password = req.body.password;
-
-  User.findOne({email : email})
+  User.findOne({ email: email })
     .then(user => {
-      if(!user){
-        console.log('The email does not exist frm the databases please do signup');
+      if (!user) {
+        req.flash('error', 'Invalid email or password.');
         return res.redirect('/login');
       }
-
-      bcrypt.compare(password, user.password)
-      .then(result =>{
-        if (result){
-          req.session.isLoggedIn = true;
-          req.session.user = user;
-          return req.session.save(err => {
-            console.log(err);
-            res.redirect('/');
-      })}
-        console.log("The password don't match");
-        return res.redirect('/login') 
-      })
-      .catch(err =>{
-        console.log(err);
-        res.redirect('/login');
-      });
+      bcrypt
+        .compare(password, user.password)
+        .then(doMatch => {
+          if (doMatch) {
+            req.session.isLoggedIn = true;
+            req.session.user = user;
+            return req.session.save(err => {
+              console.log(err);
+              res.redirect('/');
+            });
+          }
+          res.redirect('/login');
+        })
+        .catch(err => {
+          console.log(err);
+          res.redirect('/login');
+        });
     })
     .catch(err => console.log(err));
 };
